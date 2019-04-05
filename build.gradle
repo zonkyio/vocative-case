@@ -1,0 +1,137 @@
+plugins {
+    id 'java'
+    id 'groovy'
+    id 'com.adarshr.test-logger' version '1.6.0'
+    id 'idea'
+
+    id 'maven-publish'
+    id 'signing'
+    id 'net.researchgate.release' version '2.6.0'
+}
+
+ext {
+    ossrhUsername = project.findProperty('ossrh.username')
+    ossrhPassword = project.findProperty('ossrh.password')
+}
+
+group = 'io.zonky.util'
+description = 'Vocative case'
+sourceCompatibility = '1.8'
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.yaml:snakeyaml:1.24'
+    compile 'org.apache.commons:commons-lang3:3.8.1'
+
+    testCompile 'org.spockframework:spock-core:1.1-groovy-2.4-rc-2'
+}
+
+testlogger {
+    theme 'mocha'
+    showExceptions true
+    showSummary true
+    showPassed true
+    showSkipped true
+    showFailed true
+    showStandardStreams false
+    showPassedStandardStreams true
+    showSkippedStandardStreams true
+    showFailedStandardStreams true
+}
+
+task sourcesJar(type: Jar) {
+    archiveClassifier = 'sources'
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar) {
+    archiveClassifier = 'javadoc'
+    from javadoc
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+/*
+    The following Project properties are required by the `release` and `publish` plugins
+    Either define these in a Jenkins Gradle script invocation, or in the user's gradle.properties
+
+    release.useAutomaticVersion=true
+    release.releaseVersion=
+    release.newVersion=
+    ossrh.username=
+    ossrh.password=
+    signing.keyId=
+    signing.password=
+    signing.secretKeyRingFile=
+*/
+
+// makes sure the released code is published before increasing the version to SNAPSHOT
+afterReleaseBuild.dependsOn publish
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar
+            artifact javadocJar
+
+            pom {
+                name = 'Vocative case'
+                description = 'A utility for generating vocative cases out of nominative ones'
+                url = 'https://github.com/zonkyio/vocative-case'
+
+                licenses {
+                    license {
+                        name = 'MIT'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                developers {
+                    developer {
+                        name = 'Pavel Lobodinský'
+                        email = 'pavel.lobodinsky@zonky.cz'
+                    }
+                    developer {
+                        name = 'Developers Zonky'
+                        email = 'developers@zonky.cz'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/zonkyio/vocative-case.git'
+                    developerConnection = 'scm:git:ssh://github.com:zonkyio/vocative-case.git'
+                    url = 'https://github.com/zonkyio/vocative-case'
+                }
+            }
+        }
+    }
+    repositories {
+        // maven central repo
+        maven {
+            def releasesRepoUrl  = "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+            def snapshotsRepoUrl = "https://oss.sonatype.org/content/repositories/snapshots/"
+            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            credentials {
+                username ossrhUsername
+                password ossrhPassword
+            }
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.mavenJava
+}
+
+javadoc {
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
+}
